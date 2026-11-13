@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SYON — Synthesized Object Notation (.syon)</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-alt: #f1f5f9;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --primary-soft: #e0f2fe;
+      --code-bg: #1e1e1e;
+      --code-header: #181818;
+      --code-border: #2b2b2b;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 12px 32px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+    }
+
+    /* Top Navbar */
+    .navbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .navbar-inner {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 19px;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 7px 13px;
+      border-radius: 8px;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .nav-links a:hover {
+      background: var(--surface-alt);
+      color: var(--text);
+    }
+
+    .nav-links a.active {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    /* Hero Section */
+    .hero {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 56px 24px 32px;
+      text-align: center;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 16px;
+      font-size: clamp(32px, 5vw, 50px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      color: #0f172a;
+    }
+
+    .hero p.lead {
+      margin: 0 auto 26px;
+      max-width: 720px;
+      font-size: 18px;
+      color: var(--text-muted);
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 9px;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 120ms ease;
+    }
+
+    .btn:hover {
+      background: var(--surface-alt);
+      border-color: #94a3b8;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    /* Try-It Showcase Card */
+    .showcase-wrap {
+      max-width: 980px;
+      margin: 0 auto 64px;
+      padding: 0 24px;
+    }
+
+    .showcase-card {
+      background: var(--code-bg);
+      border: 1px solid #334155;
+      border-radius: 14px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      color: #d4d4d4;
+    }
+
+    .showcase-toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--code-header);
+      border-bottom: 1px solid var(--code-border);
+    }
+
+    .showcase-title {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #9cdcfe;
+      margin-right: 8px;
+    }
+
+    .preset-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-right: auto;
+    }
+
+    .pill {
+      appearance: none;
+      border: 1px solid #333333;
+      background: #252526;
+      color: #cccccc;
+      font: inherit;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .pill:hover, .pill.active {
+      border-color: #007acc;
+      background: #094771;
+      color: #ffffff;
+    }
+
+    .convert-trigger {
+      appearance: none;
+      border: 1px solid #0e639c;
+      background: #0e639c;
+      color: #ffffff;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 120ms ease;
+    }
+
+    .convert-trigger:hover {
+      background: #1177bb;
+    }
+
+    #editor-host {
+      height: 350px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #source-fallback {
+      flex: 1;
+      width: 100%;
+      border: 0;
+      outline: 0;
+      padding: 14px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: vertical;
+    }
+
+    /* Collapsible JSON Output Drawer */
+    .json-drawer {
+      display: none;
+      border-top: 2px solid #007acc;
+      background: #141414;
+    }
+
+    .json-drawer.open {
+      display: block;
+    }
+
+    .json-drawer-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: #1b1b1c;
+      border-bottom: 1px solid #2b2b2b;
+      font-size: 12px;
+    }
+
+    .json-drawer-head .label {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #4ec9b0;
+    }
+
+    .json-drawer-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .drawer-btn {
+      appearance: none;
+      border: 1px solid #3c3c3c;
+      background: #252526;
+      color: #d4d4d4;
+      font: inherit;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .drawer-btn:hover { background: #333333; }
+
+    #json-output {
+      margin: 0;
+      padding: 16px;
+      max-height: 320px;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.58;
+      color: #d4d4d4;
+      white-space: pre;
+    }
+
+    #error-box {
+      display: none;
+      padding: 14px 16px;
+      background: #3a171b;
+      color: #ffd6d6;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 13px;
+    }
+
+    #error-box.visible { display: block; }
+
+    /* VS Code Dark+ Syntax Tokens */
+    .json-key, .syon-propertyName { color: #9cdcfe; }
+    .json-string, .syon-string { color: #ce9178; }
+    .json-number, .syon-number { color: #b5cea8; }
+    .json-bool, .syon-bool { color: #569cd6; font-weight: 600; }
+    .json-null, .syon-null { color: #569cd6; font-style: italic; }
+    .syon-heading { color: #4fc1ff; font-weight: 700; }
+    .syon-modifier, .syon-meta { color: #dcdcaa; font-weight: 600; }
+    .syon-keyword, .syon-contentSeparator { color: #c586c0; font-weight: 700; }
+    .syon-operator { color: #d4d4d4; font-weight: 700; }
+    .syon-atom { color: #4ec9b0; font-weight: 700; }
+    .syon-comment { color: #6a9955; font-style: italic; }
+    .syon-punctuation { color: #808080; }
+    .syon-brace { color: #ffd700; }
+
+    /* Selling Points Section */
+    .features-section {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 20px 24px 72px;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 44px;
+    }
+
+    .section-header h2 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-header p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .feature-tag {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .feature-card h3 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 14.5px;
+    }
+
+    .code-snippet {
+      margin: auto 0 0;
+      padding: 14px 16px;
+      background: var(--code-bg);
+      color: #d4d4d4;
+      border-radius: 10px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: 28px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13.5px;
+    }
+
+    @media (max-width: 640px) {
+      .feature-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="index.html" class="brand">
+        <span>SYON</span>
+        <span class="brand-badge">.syon</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html" class="active">Home</a>
+        <a href="playground.html">Live Converter</a>
+        <a href="spec.html">Specification</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero-eyebrow">Synthesized Object Notation &bull; V0.1</div>
+    <h1>Configuration built for human hands and strict machines.</h1>
+    <p class="lead">
+      <strong>SYON</strong> gives you Markdown-like headings, first-class tables, inline comments, and layered patches that compile deterministically into pure JSON—without YAML’s indentation traps or TOML’s deep-nesting verbosity.
+    </p>
+    <div class="hero-actions">
+      <a href="playground.html" class="btn btn-primary">Open Real-Time Converter &rarr;</a>
+      <a href="spec.html" class="btn">Read the V0.1 Spec</a>
+    </div>
+  </header>
+
+  <section class="showcase-wrap" aria-label="Interactive SYON Editor">
+    <div class="showcase-card">
+      <div class="showcase-toolbar">
+        <span class="showcase-title">example.syon</span>
+        <div class="preset-pills">
+          <button type="button" class="pill active" data-preset="app">1. App &amp; Tables</button>
+          <button type="button" class="pill" data-preset="jsonpatch">2. JSON + Patch (---)</button>
+          <button type="button" class="pill" data-preset="comments">3. Inline Object Comments</button>
+        </div>
+        <button type="button" id="convert-btn" class="convert-trigger">Convert to JSON &darr;</button>
+      </div>
+
+      <div id="editor-host">
+        <textarea id="source-fallback" spellcheck="false"></textarea>
+      </div>
+
+      <div id="json-drawer" class="json-drawer">
+        <div class="json-drawer-head">
+          <span id="drawer-status" class="label">Converted JSON Output</span>
+          <div class="json-drawer-actions">
+            <button type="button" id="copy-btn" class="drawer-btn">Copy JSON</button>
+            <button type="button" id="hide-btn" class="drawer-btn">Hide</button>
+          </div>
+        </div>
+        <pre id="json-output"></pre>
+        <div id="error-box" role="alert"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features-section">
+    <div class="section-header">
+      <h2>Why SYON?</h2>
+      <p>Designed from first principles to eliminate every ambiguity in modern configuration files.</p>
+    </div>
+
+    <div class="feature-grid">
+      <article class="feature-card">
+        <span class="feature-tag">JSON Superset + Patching</span>
+        <h3>Drop in existing JSON, then patch it with <code>---</code></h3>
+        <p>
+          Start a document with a standard JSON object or array, place a <code>---</code> patch boundary, and extend it with headings, dotted fields, array appends, or tables—without rewriting the original JSON structure.
+        </p>
+        <pre class="code-snippet" data-syon>{
+  "service": "payment-api",
+  "settings": { "timeout": 30 },
+  "ports": [8080]
+}
+---
+// Extend the JSON root in a new patch:
+settings.retries: 3
+ports[+]: 8443
+
+# settings.tls
+enabled: true</pre>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-tag">Comments Everywhere</span>
+        <h3>Real <code>//</code> comments—even inside inline JSON objects</h3>
+        <p>
+          Unlike JSON, SYON treats <code>//</code> line comments as first-class syntax everywhere: after headings, on table rows, and right inside multi-line <code>{ … }</code> objects and <code>[ … ]</code> arrays.
+        </p>
+        <pre class="code-snippet" data-syon># client
+request: {
+  method: "POST", // trailing comment inside an object
+  // retry policy for transient 5xx responses
+  retries: 3,
+  headers: {
+    "X-Env": "staging", // trailing commas are welcome too
+  }
+}</pre>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-tag">No Indentation Traps</span>
+        <h3>Headings move the cursor. Fields write values.</h3>
+        <p>
+          In SYON, indentation is purely cosmetic. <code>#</code> and <code>##</code> headings navigate the object tree, while dotted fields like <code>database.host: "localhost"</code> allocate intermediate objects without closing navigation scopes.
+        </p>
+        <pre class="code-snippet" data-syon># application
+database.host: "localhost"
+
+## database
+pool: 5
+timeout: 30
+
+# endpoints[+]
+path: "/health"
+public: true</pre>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-tag">First-Class Tables</span>
+        <h3>Schemas (<code>*</code>), group locks (<code>^</code>), and omission (<code>_</code>)</h3>
+        <p>
+          Define array-tuple tables (<code>+</code>) or object-map tables (<code>- key :</code>). Row 2 locks group-identity columns with <code>^</code>, <code>_</code> omits optional fields, and <code>***</code> starts a fresh group.
+        </p>
+        <pre class="code-snippet" data-syon>routes[]
+* name      | port | tls  | note
++ "primary" | 443  | true | "Main ingress"
++ "backup"  | ^    | ^    | _
+***
++ "legacy"  | 80   | false | "Redirect only"</pre>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-tag">Write-Once Safety</span>
+        <h3>Catches duplicate keys &amp; accidental overwrites</h3>
+        <p>
+          Silent key overwrites are a top cause of production outages. SYON prohibits duplicate field assignments across the entire document and seals completed container literals until the next <code>---</code> patch boundary.
+        </p>
+        <pre class="code-snippet" data-syon>settings: { timeout: 30 }
+---
+settings.enabled: true    // Valid: adds a new sibling field
+// settings.timeout: 60   // Error (E_DUPLICATE): already assigned!</pre>
+      </article>
+
+      <article class="feature-card">
+        <span class="feature-tag">Multiline Strings &amp; Continuation</span>
+        <h3>Literal <code>'…'</code>, escaped <code>"…"</code>, &amp; multi-line <code>&gt;</code> blocks</h3>
+        <p>
+          Use <code>'single quotes'</code> for literal backslashes, <code>"double quotes"</code> for escapes, and <code>&gt;</code> blocks to write real multi-line strings or join <code>'…'</code> and <code>"…"</code> fragments across lines.
+        </p>
+        <pre class="code-snippet" data-syon>// 1. Multi-line string spanning > lines (preserves \n):
+script: >
+> "echo 'Starting deploy...'
+>  ./bin/run --env=prod
+>  echo 'Done!'"
+
+// 2. Join literal '' and escaped "" across > lines:
+logPath: >
+> 'C:\Program Files\SYON\'
+> "logs\t(v0.1)"</pre>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    SYON (Synthesized Object Notation) &bull; <a href="playground.html" style="color: inherit;">Live Converter</a> &bull; <a href="spec.html" style="color: inherit;">V0.1 Specification</a>
+  </footer>
+
+  <script src="converter.js"></script>
+  <script src="editor.bundle.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      const presets = {
+        app: [
+          "# application",
+          'name: "demo"',
+          "_env: 'production'",
+          "",
+          "ports[]",
+          "+ 8080",
+          "+ 8081",
+          "",
+          'database.host: "localhost"',
+          "",
+          "## database",
+          "* $",
+          "- pool    : 5",
+          "- timeout : 30",
+          "- retries : _",
+          "",
+          "## jobs",
+          "jobList[]",
+          "* name    | count | enabled",
+          '+ "build" | 2     | true',
+          '+ "test"  | ^     | false',
+          '+ "lint"  | ^     | true'
+        ].join("\n"),
+
+        jsonpatch: [
+          "{",
+          '  "service": "checkout-api",',
+          '  "settings": { "timeout": 30 },',
+          '  "origins": ["https://shop.example.com"]',
+          "}",
+          "---",
+          "// Patch the JSON base above using SYON statements:",
+          "settings.retries: 3",
+          'origins[+]: "https://admin.example.com"',
+          "",
+          "# settings.tls",
+          "enabled: true",
+          'minVersion: "TLSv1.3"'
+        ].join("\n"),
+
+        comments: [
+          "# gateway",
+          "upstream: {",
+          '  url: "https://internal.service:8443", // inline comment inside object!',
+          "  // Connection pool settings",
+          "  pool: {",
+          "    maxIdle: 16,",
+          "    keepAliveMs: 30000,",
+          "  },",
+          "  tags: [",
+          '    "core", // primary tier',
+          '    "pci-scope",',
+          "  ]",
+          "}"
+        ].join("\n")
+      };
+
+      const editorHost = document.getElementById("editor-host");
+      const fallback = document.getElementById("source-fallback");
+      const convertBtn = document.getElementById("convert-btn");
+      const drawer = document.getElementById("json-drawer");
+      const drawerStatus = document.getElementById("drawer-status");
+      const jsonOutput = document.getElementById("json-output");
+      const errorBox = document.getElementById("error-box");
+      const copyBtn = document.getElementById("copy-btn");
+      const hideBtn = document.getElementById("hide-btn");
+      const pills = document.querySelectorAll(".pill");
+
+      let editor = null;
+      let lastJson = "";
+
+      function getSource() {
+        return editor ? editor.getValue() : fallback.value;
+      }
+
+      function setSource(text) {
+        if (editor) editor.setValue(text);
+        else fallback.value = text;
+      }
+
+      function runConvertAndOpenDrawer() {
+        const result = BareConverter.convertSource(getSource());
+        drawer.classList.add("open");
+
+        if (result.ok) {
+          lastJson = result.json;
+          drawerStatus.textContent = "Converted JSON Output";
+          drawerStatus.style.color = "#4ec9b0";
+          errorBox.className = "";
+          errorBox.textContent = "";
+          if (window.BareEditor && window.BareEditor.highlightJsonHtml) {
+            jsonOutput.innerHTML = window.BareEditor.highlightJsonHtml(result.json);
+          } else {
+            jsonOutput.textContent = result.json;
+          }
+          jsonOutput.style.display = "block";
+        } else {
+          lastJson = "";
+          drawerStatus.textContent = "Conversion Error (" + result.error.code + ")";
+          drawerStatus.style.color = "#f44747";
+          jsonOutput.style.display = "none";
+          errorBox.className = "visible";
+          errorBox.textContent = "[" + result.error.code + "] Line " + result.error.line + ", Col " + result.error.col + ": " + result.error.message;
+        }
+      }
+
+      if (window.BareEditor && window.BareEditor.createBareEditor) {
+        fallback.remove();
+        editor = window.BareEditor.createBareEditor({
+          parent: editorHost,
+          initialDoc: presets.app,
+          onChange: function () {
+            if (drawer.classList.contains("open")) {
+              runConvertAndOpenDrawer();
+            }
+          },
+          onConvertShortcut: runConvertAndOpenDrawer
+        });
+      } else {
+        fallback.value = presets.app;
+      }
+
+      convertBtn.addEventListener("click", runConvertAndOpenDrawer);
+
+      hideBtn.addEventListener("click", function () {
+        drawer.classList.remove("open");
+      });
+
+      copyBtn.addEventListener("click", function () {
+        if (!lastJson) return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(lastJson).then(function () {
+            copyBtn.textContent = "Copied!";
+            setTimeout(function () { copyBtn.textContent = "Copy JSON"; }, 900);
+          });
+        }
+      });
+
+      pills.forEach(function (pill) {
+        pill.addEventListener("click", function () {
+          pills.forEach(function (p) { p.classList.remove("active"); });
+          pill.classList.add("active");
+          const key = pill.getAttribute("data-preset");
+          if (presets[key]) {
+            setSource(presets[key]);
+            if (drawer.classList.contains("open")) {
+              runConvertAndOpenDrawer();
+            }
+          }
+        });
+      });
+
+      // Highlight static .syon feature cards
+      if (window.BareEditor && window.BareEditor.highlightSyonHtml) {
+        document.querySelectorAll("[data-syon]").forEach(function (el) {
+          el.innerHTML = window.BareEditor.highlightSyonHtml(el.textContent);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

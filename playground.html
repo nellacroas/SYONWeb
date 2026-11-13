@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SYON Live Converter — Real-Time .syon to JSON</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-alt: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --primary: #0284c7;
+      --primary-soft: #e0f2fe;
+      --pane-bg: #1e1e1e;
+      --pane-head: #181818;
+      --pane-border: #2b2b2b;
+      --shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navbar */
+    .navbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+
+    .navbar-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .nav-links a:hover {
+      background: var(--surface-alt);
+      color: var(--text);
+    }
+
+    .nav-links a.active {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    main {
+      flex: 1;
+      min-height: 0;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .pane {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--pane-bg);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      color: #d4d4d4;
+    }
+
+    .pane-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--pane-border);
+      background: var(--pane-head);
+    }
+
+    .pane-head .title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #9cdcfe;
+      margin-right: auto;
+    }
+
+    select, button {
+      appearance: none;
+      border: 1px solid #3c3c3c;
+      background: #252526;
+      color: #d4d4d4;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    select:hover, button:hover {
+      border-color: #555555;
+      background: #2d2d2d;
+    }
+
+    button.primary {
+      border-color: #0e639c;
+      background: #0e639c;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    button.primary:hover { background: #1177bb; }
+
+    #editor-host {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #source {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      resize: none;
+      border: 0;
+      outline: 0;
+      padding: 16px;
+      background: transparent;
+      color: #d4d4d4;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 14px;
+      line-height: 1.62;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    .output-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      background: #1e1e1e;
+    }
+
+    #output {
+      margin: 0;
+      padding: 16px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.58;
+      color: #d4d4d4;
+      white-space: pre;
+    }
+
+    #output .json-key { color: #9cdcfe; }
+    #output .json-string { color: #ce9178; }
+    #output .json-number { color: #b5cea8; }
+    #output .json-bool { color: #569cd6; font-weight: 600; }
+    #output .json-null { color: #569cd6; font-style: italic; }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 12px;
+      border-top: 1px solid var(--pane-border);
+      color: #9ca3af;
+      font-size: 12px;
+      background: #181818;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #64748b;
+      flex: 0 0 auto;
+    }
+    .dot.ok { background: #34d399; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.14); }
+    .dot.err { background: #f87171; box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.14); }
+
+    #error {
+      display: none;
+      padding: 12px 14px;
+      border-top: 1px solid #5b252b;
+      background: #3a171b;
+      color: #ffd6d6;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    #error.visible { display: block; }
+    #error .code {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-weight: 700;
+      color: #fca5a5;
+    }
+    #error .where {
+      color: #f3b4b4;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+    #error .related {
+      margin-top: 4px;
+      color: #d9a3a3;
+      font-size: 12px;
+    }
+
+    footer {
+      padding: 8px 20px 10px;
+      color: var(--text-muted);
+      font-size: 12px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    @media (max-width: 860px) {
+      main {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(260px, 1fr) minmax(260px, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="index.html" class="brand">
+        <span>SYON</span>
+        <span class="brand-badge">.syon</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="playground.html" class="active">Live Converter</a>
+        <a href="spec.html">Specification</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="pane" aria-label="SYON Source">
+      <div class="pane-head">
+        <span class="title">SYON Source (.syon)</span>
+        <select id="preset-select" aria-label="Load Preset">
+          <option value="app">Sample: App &amp; Tables</option>
+          <option value="jsonpatch">Sample: JSON + Patch (---)</option>
+          <option value="comments">Sample: Inline Object Comments</option>
+          <option value="routes">Sample: Grouped Tables (***)</option>
+        </select>
+        <button id="clear" type="button">Clear</button>
+        <button id="convert" class="primary" type="button">Convert</button>
+      </div>
+      <div id="editor-host">
+        <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+      </div>
+      <div class="status">
+        <span id="status-dot" class="dot"></span>
+        <span id="status-text">Ready</span>
+      </div>
+    </section>
+
+    <section class="pane" aria-label="JSON output">
+      <div class="pane-head">
+        <span class="title">JSON Output</span>
+        <button id="copy" type="button">Copy JSON</button>
+      </div>
+      <div class="output-wrap">
+        <pre id="output"></pre>
+      </div>
+      <div id="error" role="alert"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Real-time SYON &rarr; JSON conversion. Hover over red underlines for error details.</span>
+    <span>Ctrl/Cmd + Enter converts manually</span>
+  </footer>
+
+  <script src="converter.js"></script>
+  <script src="editor.bundle.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      const editorHost = document.getElementById("editor-host");
+      const fallbackSource = document.getElementById("source");
+      const output = document.getElementById("output");
+      const errorBox = document.getElementById("error");
+      const statusDot = document.getElementById("status-dot");
+      const statusText = document.getElementById("status-text");
+      const convertButton = document.getElementById("convert");
+      const presetSelect = document.getElementById("preset-select");
+      const clearButton = document.getElementById("clear");
+      const copyButton = document.getElementById("copy");
+
+      const presets = {
+        app: [
+          "# application",
+          'name: "demo"',
+          'description: "A small SYON configuration example."',
+          "_env: 'production'",
+          "",
+          "ports[]",
+          "+ 8080",
+          "+ 8081",
+          "",
+          'database.host: "localhost"',
+          "",
+          "## database",
+          "* $",
+          "- pool : 5",
+          "- timeout : 30",
+          "- retries : _",
+          "",
+          "## jobs",
+          "jobList[]",
+          "* name | count | enabled",
+          '+ "build" | 2 | true',
+          '+ "test"  | ^ | false',
+          '+ "lint"  | ^ | true',
+          "",
+          "# endpoints[+]",
+          'path: "/health"',
+          "public: true",
+          "banner: >",
+          '> "Service "',
+          '> "is healthy"',
+          "",
+          "# endpoints[+]",
+          'path: "/metrics"',
+          "public: false"
+        ].join("\n"),
+
+        jsonpatch: [
+          "{",
+          '  "service": "checkout-api",',
+          '  "settings": { "timeout": 30 },',
+          '  "origins": ["https://shop.example.com"]',
+          "}",
+          "---",
+          "// Extend the JSON root in a new patch:",
+          "settings.retries: 3",
+          'origins[+]: "https://admin.example.com"',
+          "",
+          "# settings.tls",
+          "enabled: true",
+          'minVersion: "TLSv1.3"'
+        ].join("\n"),
+
+        comments: [
+          "# gateway",
+          "upstream: {",
+          '  url: "https://internal.service:8443", // inline comment inside object!',
+          "  // Connection pool settings",
+          "  pool: {",
+          "    maxIdle: 16,",
+          "    keepAliveMs: 30000,",
+          "  },",
+          "  tags: [",
+          '    "core", // primary tier',
+          '    "pci-scope",',
+          "  ]",
+          "}"
+        ].join("\n"),
+
+        routes: [
+          "Network.Route[]",
+          "* name        | port | tls   | enabled | description",
+          '+ "primary"   | 443  | true  | true    | "Main server"',
+          '+ "backup"    | ^    | ^     | false   | "Failover"',
+          '+ "secondary" | ^    | ^     | true    | _',
+          "***",
+          '+ "legacy"    | 80   | false | true    | "HTTP only"',
+          '+ "legacy-2"  | ^    | ^     | false   | _'
+        ].join("\n")
+      };
+
+      let timer = null;
+      let editor = null;
+      let rawJsonText = "";
+
+      function setStatus(kind, text) {
+        statusDot.className = "dot" + (kind ? " " + kind : "");
+        statusText.textContent = text;
+      }
+
+      function clearError() {
+        errorBox.className = "";
+        errorBox.textContent = "";
+      }
+
+      function showError(error, inputLines) {
+        clearError();
+        errorBox.className = "visible";
+
+        const code = document.createElement("div");
+        code.className = "code";
+        code.textContent = error.code;
+
+        const message = document.createElement("div");
+        message.textContent = error.message;
+
+        const where = document.createElement("div");
+        where.className = "where";
+        where.textContent = "line " + error.line + ", column " + error.col;
+
+        errorBox.appendChild(code);
+        errorBox.appendChild(message);
+        errorBox.appendChild(where);
+
+        if (error.related && error.related.line) {
+          const related = document.createElement("div");
+          related.className = "related";
+          related.textContent = "Related location: line " + error.related.line +
+            (error.related.col ? ", column " + error.related.col : "");
+          errorBox.appendChild(related);
+        }
+
+        if (inputLines && inputLines[error.line - 1]) {
+          const snippet = document.createElement("div");
+          snippet.className = "related";
+          snippet.textContent = "> " + inputLines[error.line - 1];
+          errorBox.appendChild(snippet);
+        }
+      }
+
+      function getSourceText() {
+        return editor ? editor.getValue() : fallbackSource.value;
+      }
+
+      function setSourceText(text) {
+        if (editor) {
+          editor.setValue(text);
+        } else {
+          fallbackSource.value = text;
+        }
+      }
+
+      function focusEditor() {
+        if (editor) editor.focus();
+        else fallbackSource.focus();
+      }
+
+      function renderJson(json) {
+        rawJsonText = json || "";
+        if (window.BareEditor && window.BareEditor.highlightJsonHtml) {
+          output.innerHTML = window.BareEditor.highlightJsonHtml(rawJsonText);
+        } else {
+          output.textContent = rawJsonText;
+        }
+      }
+
+      function convert() {
+        const text = getSourceText();
+        const result = BareConverter.convertSource(text);
+        const inputLines = text.split("\n");
+
+        if (result.ok) {
+          renderJson(result.json);
+          clearError();
+          setStatus("ok", "Converted");
+        } else {
+          renderJson("");
+          showError(result.error, inputLines);
+          setStatus("err", result.error.code);
+        }
+      }
+
+      function scheduleConvert() {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(convert, 120);
+      }
+
+      if (window.BareEditor && window.BareEditor.createBareEditor) {
+        fallbackSource.remove();
+        editor = window.BareEditor.createBareEditor({
+          parent: editorHost,
+          initialDoc: presets.app,
+          onChange: scheduleConvert,
+          onConvertShortcut: convert
+        });
+      } else {
+        fallbackSource.value = presets.app;
+        fallbackSource.addEventListener("input", scheduleConvert);
+      }
+
+      convertButton.addEventListener("click", convert);
+      presetSelect.addEventListener("change", function () {
+        const key = presetSelect.value;
+        if (presets[key]) {
+          setSourceText(presets[key]);
+          convert();
+          focusEditor();
+        }
+      });
+      clearButton.addEventListener("click", function () {
+        setSourceText("");
+        renderJson("");
+        clearError();
+        setStatus("", "Ready");
+        focusEditor();
+      });
+      copyButton.addEventListener("click", function () {
+        const text = rawJsonText;
+        if (!text) return;
+        const done = function () {
+          copyButton.textContent = "Copied";
+          setTimeout(function () { copyButton.textContent = "Copy JSON"; }, 900);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, function () {});
+        }
+      });
+
+      convert();
+    })();
+  </script>
+</body>
+</html>
