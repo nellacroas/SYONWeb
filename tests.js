@@ -313,7 +313,7 @@ ok("C02", 'joined: >\n>"a"\n>"b"', { joined: "ab" });
 ok("C03", 'message: >\n>"a\n> // NOT comment\n> b"', {
   message: "a\n// NOT comment\nb"
 });
-bad("C04", "x: > // comment", "E_SYNTAX");
+ok("C04", "x: > // comment\n> 12", { x: 12 });
 bad("C05", 'x: > ""', "E_SYNTAX");
 ok("C06", "x: >\n> 12", { x: 12 });
 bad("C07", "x: >\n> { a: 1 }", "E_VALUE");

@@ -5,7 +5,7 @@
 
 SYON is a human-editable, line-oriented notation for nested data. A SYON document denotes exactly one JSON value.
 
-SYON is not Markdown. Its source is interpreted as SYON syntax, not rendered as Markdown. Headings move a cursor through the document, fields write values, array statements append elements, and tables define rows. Patch boundaries separate navigation contexts while preserving the accumulated document.
+SYON is not Markdown. Its source is interpreted as SYON syntax, not rendered as Markdown. Headings move a cursor through the document, fields write values, array statements append elements, and tables define rows. Section boundaries (`---`) separate navigation contexts while preserving the accumulated document.
 
 ---
 
@@ -20,9 +20,8 @@ SYON is not Markdown. Its source is interpreted as SYON syntax, not rendered as 
 7. Fields, array blocks, and appends
 8. Allocation, assignment, seals, and access
 9. Tables
-10. Patches
-11. Unsupported syntax
-12. Complete examples
+10. Sections
+11. Complete examples
 
 ---
 
@@ -60,7 +59,7 @@ A nonempty source line that is not a comment-only line begins a statement. State
 | Form | Purpose |
 | --- | --- |
 | `# title`, `## title`, … | Select or allocate a heading target |
-| `---` | Start a new patch |
+| `---` | Start a new section |
 | `key: value` | Assign a field at the current object cursor |
 | `key[+]: value` | Append a value to an array at the current object cursor |
 | `key[]` | Open an array block |
@@ -79,7 +78,7 @@ A heading establishes an absolute **heading target** and makes it the cursor. Th
 
 A **heading body** is the non-heading statements after a heading until the next heading or `---`. Statements before the first heading, and statements after a `---` before the next heading, form an **implicit root body**.
 
-A **patch** is the portion of the document between `---` boundaries. The first patch begins at the start of the document.
+A **section** is the portion of the document between `---` boundaries. The first section begins at the start of the document.
 
 Headings and non-heading statements have separate roles:
 
@@ -134,9 +133,10 @@ Comments may follow:
 - headings;
 - fields;
 - array declarations and append fields;
-- `---` patch boundaries;
+- `---` section boundaries;
 - `***` group separators;
 - table schemas and rows;
+- `>` continuation openers and continuation lines;
 - bare root values.
 
 A comment inside a quoted string is literal content:
@@ -146,8 +146,6 @@ url: "https://example.com/a//b"
 ```
 
 There are no block comments.
-
-The `>` value opener is the one exception to ordinary trailing comments: only optional whitespace may follow `>` on its opener line. See §3.8.
 
 ### 2.5 Statement extent
 
@@ -382,13 +380,14 @@ It is not allowed as a bare root value, on a `+` row or table row, in a table ce
 
 The opener is `L-value : >`.
 
-Only optional trailing whitespace may follow `>` on that physical line. No comment or value may follow it.
+Only optional trailing whitespace or a `//` line comment may follow `>` on that physical line. No value or hint token may follow it.
 
 Valid:
 
 ```syon
 x: >
 x:>   
+x: > // comment
 ```
 
 Invalid:
@@ -396,7 +395,6 @@ Invalid:
 ```syon
 x: > ""
 x: > yaml
-x: > // comment
 x: >[
 ```
 
@@ -449,7 +447,7 @@ The reconstructed body is parsed using the normal value grammar and must produce
 - A reconstructed object or array is invalid. The first meaningful token may not be `{` or `[`.
 - Newlines outside quoted strings are parsing whitespace.
 - Newlines inside open quoted strings are string content.
-- Comments are recognized outside quoted strings. A line comment may follow payload text on a continuation line; a comment may not follow the `>` opener itself.
+- Comments are recognized outside quoted strings. A line comment may follow the `>` opener or payload text on a continuation line.
 - Quoted fragments on separate `>` continuation lines (separated by at least one reconstructed newline) concatenate; multiple quoted fragments on the same continuation line are invalid.
 - Unquoted text does not automatically become a string.
 
@@ -634,7 +632,7 @@ The root may be any supported value: object, array, string, number, boolean, or 
 - `# []` and `# [+]` establish an array root.
 - A bare root R-value may initialize the root only at the beginning of the document, before the first heading and before the first `---`.
 - Empty source produces `{}`.
-- Comments, blank lines, and patch boundaries alone do not establish a root shape.
+- Comments, blank lines, and section boundaries alone do not establish a root shape.
 
 Once established, the root cannot change shape or be replaced.
 
@@ -686,7 +684,7 @@ A bare root value after any heading or any `---` is invalid, including after a l
 
 ### 5.3 Empty documents
 
-Empty input produces `{}`. A document containing only comments, blank lines, and patch boundaries also produces `{}`.
+Empty input produces `{}`. A document containing only comments, blank lines, and section boundaries also produces `{}`.
 
 ---
 
@@ -943,15 +941,15 @@ produces:
 {"a":{"b":{"c":1},"d":{}}}
 ```
 
-### 6.7 Final heading target once per patch
+### 6.7 Final heading target once per section
 
-Within one patch, an exact final heading target may be selected only once.
+Within one section, an exact final heading target may be selected only once.
 
 - Compare decoded absolute paths, not source spelling or heading level. `# a` and `# "a"` are the same path. `# "a.b"` is one key; `# a.b` is two segments.
 - Intermediate heading components do not consume this allowance.
 - Fields, declarations, appends, and table rows do not consume this allowance.
 - Each `[+]` heading selects a fresh element and therefore has a different final target.
-- `# []` is a final heading target and counts once per patch.
+- `# []` is a final heading target and counts once per section.
 - `# [+]` always selects a fresh element.
 
 Example:
@@ -1000,7 +998,7 @@ is valid.
 # []
 ```
 
-is valid when `# []` has not already been used in that patch.
+is valid when `# []` has not already been used in that section.
 
 ```syon
 # []
@@ -1088,8 +1086,8 @@ Rules:
 - An append statement ends an active array block.
 - A later plain `+` requires another array block.
 - Appending does not bypass closed paths or seals.
-- A literal-assigned array is sealed for its assignment patch; appending becomes valid after `---`.
-- Appending to an array that was assigned in an earlier patch is allowed.
+- A literal-assigned array is sealed for its assignment section; appending becomes valid after `---`.
+- Appending to an array that was assigned in an earlier section is allowed.
 - Another whole-array assignment remains a duplicate assignment.
 
 The R-value may use a direct multiline object or array, or `>` continuation:
@@ -1134,7 +1132,7 @@ Rules:
 - Missing intermediate objects are allocated.
 - A non-array target is a shape error.
 
-An empty array created by `key[]` may receive its first complete assignment while it is still empty and the value has matching shape, for example after a patch boundary:
+An empty array created by `key[]` may receive its first complete assignment while it is still empty and the value has matching shape, for example after a section boundary:
 
 ```syon
 items[]
@@ -1251,7 +1249,7 @@ produces:
 Arrays may contain different JSON value kinds.
 
 - Each append adds a fresh element.
-- A literal-valued element is sealed for its assignment patch.
+- A literal-valued element is sealed for its assignment section.
 - A `[+]` heading instead creates an editable, unsealed object.
 - There is no array-index path syntax.
 - There is no element replacement, element deletion, or whole-array clear operation.
@@ -1338,7 +1336,7 @@ Explicit appends add fresh elements and do not replace the array.
 - An array declaration or opener is not an assignment.
 - An append is not a whole-array assignment.
 
-A later patch may add a previously absent descendant to an assigned container, but may not assign the container or an existing member again.
+A later section may add a previously absent descendant to an assigned container, but may not assign the container or an existing member again.
 
 ### 8.4 First assignment to an empty allocation-only target
 
@@ -1381,7 +1379,7 @@ a: {}
 a: { x: 1 }         // invalid: a was already assigned
 ```
 
-Once the first assignment occurs, the target is sealed for that patch and its assignment history remains.
+Once the first assignment occurs, the target is sealed for that section and its assignment history remains.
 
 ### 8.5 Container assignments seal until `---`
 
@@ -1961,7 +1959,7 @@ Direct-value row resolving to omission:
 - A row target may be an empty allocation-only object or array that satisfies §8.4.
 - A complete assignment over a nonempty row target is invalid.
 - An already-assigned row target cannot be assigned again.
-- A later patch may add a previously absent descendant but may not assign the row target or an existing member again.
+- A later section may add a previously absent descendant but may not assign the row target or an existing member again.
 
 ### 9.14 Table placement and lifetime
 
@@ -1996,13 +1994,13 @@ Tables do not infer or validate column types.
 
 ---
 
-## 10. Patches
+## 10. Sections
 
-A line whose statement content is `---` starts a new patch.
+A line whose statement content is `---` starts a new section.
 
-A leading `---` is allowed. It still counts as a patch boundary for purposes of bare root initialization, but it does not establish root shape.
+A leading `---` is allowed. It still counts as a section boundary for purposes of bare root initialization, but it does not establish root shape.
 
-At a patch boundary:
+At a section boundary:
 
 - the cursor returns to the root;
 - heading frames are cleared;
@@ -2038,7 +2036,7 @@ produces:
 {"settings":{"timeout":30,"enabled":true}}
 ```
 
-Writing `timeout: 45` in the second patch is still invalid.
+Writing `timeout: 45` in the second section is still invalid.
 
 After `---`, the cursor is the root. If the root is absent, object-establishing statements such as fields may create an object root. If the root is an object, fields operate there. A root array requires `# []`, and a root scalar is a leaf. Relative headings immediately after `---` are orphans.
 
@@ -2048,79 +2046,48 @@ A bare root R-value is invalid after any `---`, even if the root is still absent
 
 `---` has no document-level meaning inside a quoted string, a container value, or a `>` payload.
 
-`***` is not a patch boundary.
+`***` is not a section boundary.
 
 ---
 
-## 11. Unsupported syntax
+## 11. Complete examples
 
-The following are not part of SYON V0.1 and are invalid:
-
-- Markdown prose, code fences, bullet lists, and rendered Markdown tables;
-- `=` as a field separator;
-- `* key: value` as a field syntax;
-- indentation-based nesting or indented field bodies;
-- bullet-nested objects;
-- named `[key]` upserts;
-- named array headings such as `# name[]`;
-- combined or repeated structural suffixes;
-- trailing unquoted `:` on headings;
-- bare `[+]` as a document statement;
-- `[]` as an array-opening marker outside the special root heading and value contexts;
-- free-standing object, array, or scalar literals after a heading or `---`;
-- bare root values after a heading, another write, or any `---`;
-- duplicate complete assignments;
-- complete assignment over a populated object or array;
-- object absorption, array absorption, merging, replacement, clearing;
-- array indexing, element replacement, and deletion;
-- multiline `+` rows or multiline table rows and cells;
-- `>` continuation on `+` rows, table rows, or object/array values;
-- content or comments after `>` on its opener line;
-- TOML-style triple-quoted strings;
-- multiline `/* … */` comments;
-- `NaN` and `Infinity`;
-- standalone `~`, `~` defaults/legend rows, and fill-from-blank behavior;
-- implied trailing cells, short rows, and table-column type inference.
-
-An unrecognized nonempty, non-comment statement is an error.
-
----
-
-## 12. Complete examples
-
-### 12.1 Headings, implicit objects, and tables
+### 11.1 Headings, implicit objects, and tables
 
 ```syon
 # application
-name: "demo"
-description: "A small SYON example."
+name: "edge-gateway"
+_env: 'production'
+tags[+]: "eu-west"
+tags[+]: "tier-1"
 
-ports[]
-+ 8080
-+ 8081
-
-database.host: "localhost"
+database.host: "db.internal"
 
 ## database
-* $
-- pool : 5
-- timeout : 30
-- retries : _
+pool: 8
+timeout: 30
 
-## jobs
-jobList[]
-* name | count | enabled
-+ "build" | 2 | true
-+ "test"  | ^ | false
-+ "lint"  | ^ | true
+### replicas[+]
+region: "eu-west-1"
+readOnly: true
 
-# endpoints[+]
-path: "/health"
-public: true
+### replicas[+]
+region: "eu-central-1"
+readOnly: false
 
-# endpoints[+]
-path: "/metrics"
-public: false
+# endpoints
+* $       : method | path       | rateLimit
+- health  : "GET"  | "/health"  | _
+- metrics : ^      | "/metrics" | 120
+***
+- charge  : "POST" | "/charge"  | 60
+
+# jobs
+queue[]
+* name    | workers | enabled
++ "build" | 4       | true
++ "test"  | ^       | false
++ "lint"  | ^       | true
 ```
 
 produces:
@@ -2128,30 +2095,35 @@ produces:
 ```json
 {
   "application": {
-    "name": "demo",
-    "description": "A small SYON example.",
-    "ports": [8080, 8081],
+    "name": "edge-gateway",
+    "tags": ["eu-west", "tier-1"],
+    "_env": "production",
     "database": {
-      "host": "localhost",
-      "pool": 5,
-      "timeout": 30
-    },
-    "jobs": {
-      "jobList": [
-        {"name": "build", "count": 2, "enabled": true},
-        {"name": "test", "count": 2, "enabled": false},
-        {"name": "lint", "count": 2, "enabled": true}
+      "host": "db.internal",
+      "pool": 8,
+      "timeout": 30,
+      "replicas": [
+        {"region": "eu-west-1", "readOnly": true},
+        {"region": "eu-central-1", "readOnly": false}
       ]
     }
   },
-  "endpoints": [
-    {"path": "/health", "public": true},
-    {"path": "/metrics", "public": false}
-  ]
+  "endpoints": {
+    "health": {"method": "GET", "path": "/health"},
+    "metrics": {"method": "GET", "path": "/metrics", "rateLimit": 120},
+    "charge": {"method": "POST", "path": "/charge", "rateLimit": 60}
+  },
+  "jobs": {
+    "queue": [
+      {"name": "build", "workers": 4, "enabled": true},
+      {"name": "test", "workers": 4, "enabled": false},
+      {"name": "lint", "workers": 4, "enabled": true}
+    ]
+  }
 }
 ```
 
-### 12.2 Servlet-style nested configuration
+### 11.2 Servlet-style nested configuration
 
 ```syon
 web-app.servlet-mapping.abc: "/abc/*"
@@ -2191,7 +2163,7 @@ produces:
 }
 ```
 
-### 12.3 Grouped array table
+### 11.3 Grouped array table
 
 ```syon
 items[]
@@ -2218,7 +2190,7 @@ produces:
 }
 ```
 
-### 12.4 Root array
+### 11.4 Root array
 
 ```syon
 # []
@@ -2236,7 +2208,7 @@ produces:
 ]
 ```
 
-### 12.5 Root assignment and later extension
+### 11.5 Root assignment and later extension
 
 ```syon
 { name: "web", ports: [8080] }
@@ -2250,7 +2222,7 @@ produces:
 {"name":"web","ports":[8080],"enabled":true}
 ```
 
-### 12.6 Reassignment protection
+### 11.6 Reassignment protection
 
 ```syon
 settings: { timeout: 30 }

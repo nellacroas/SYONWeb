@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none">
+  <defs>
+    <linearGradient id="syon-stem" x1="25" y1="27" x2="103" y2="101" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#6366F1" />
+    </linearGradient>
+    <linearGradient id="syon-graft" x1="71" y1="18" x2="103" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="#0B1120" />
+  <rect x="2" y="2" width="124" height="124" rx="26" stroke="#1E293B" stroke-width="2" />
+
+  <path
+    d="M 53 34 H 47 A 15 15 0 0 0 47 64 H 81 A 15 15 0 0 1 81 94 H 34"
+    stroke="url(#syon-stem)"
+    stroke-width="14"
+    stroke-linecap="round"
+  />
+  <path
+    d="M 76.5 34 H 97.5 M 87 23.5 V 44.5"
+    stroke="url(#syon-graft)"
+    stroke-width="11"
+    stroke-linecap="round"
+  />
+</svg>

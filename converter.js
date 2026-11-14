@@ -1110,7 +1110,7 @@
 
       if (!isAppend && this.patch.finalTargets.has(pathCanon(finalPreview))) {
         const prior = this.patch.finalTargets.get(pathCanon(finalPreview));
-        fail("E_HEAD_REPEAT", "Heading target " + pathText(finalPreview) + " was already selected in this patch.", line, col, prior.span);
+        fail("E_HEAD_REPEAT", "Heading target " + pathText(finalPreview) + " was already selected in this section.", line, col, prior.span);
       }
 
       this.checkClosed(finalPreview, line, col);
@@ -1440,8 +1440,8 @@
 
     collectContinuation(content, line, indent, gtPos) {
       const rest = content.slice(gtPos + 1);
-      if (!/^[ \t]*$/.test(rest)) {
-        fail("E_SYNTAX", "Only optional whitespace may follow the > opener.", line, indent + gtPos + 2);
+      if (!onlyHSpaceOrComment(rest, 0)) {
+        fail("E_SYNTAX", "Only optional whitespace or a comment may follow the > opener.", line, indent + gtPos + 2);
       }
 
       let body = "";

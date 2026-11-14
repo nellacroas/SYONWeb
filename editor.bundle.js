@@ -30921,7 +30921,7 @@ exports.minimalSetup = minimalSetup;
           }
           if (stream.match(/^\*\*\*(?=[ \t]*(?:\/\/.*)?$)/)) {
             state.lineMode = "value";
-            return "contentSeparator";
+            return "labelName";
           }
           if (stream.match(/^#+[ \t]+/)) {
             state.lineMode = "heading";
@@ -31064,7 +31064,7 @@ exports.minimalSetup = minimalSetup;
       }
 
       if (state.lineMode === "after-colon") {
-        if (stream.match(/^>(?=[ \t]*$)/)) {
+        if (stream.match(/^>(?=[ \t]*(?:\/\/.*)?$)/)) {
           state.inContinuation = true;
           state.inContinuationString = null;
           state.lineMode = "value";
@@ -31203,14 +31203,15 @@ exports.minimalSetup = minimalSetup;
   const bareLanguage = StreamLanguage.define(bareMarkupParser);
 
   const bareHighlightStyle = HighlightStyle.define([
-    { tag: tags.heading, color: "#4fc1ff", fontWeight: "700" },
+    { tag: tags.heading, color: "#ffb454", fontWeight: "700" },
     { tag: tags.propertyName, color: "#9cdcfe" },
-    { tag: tags.modifier, color: "#dcdcaa", fontWeight: "600" },
+    { tag: tags.modifier, color: "#22d3ee", fontWeight: "700" },
     { tag: tags.keyword, color: "#c586c0", fontWeight: "700" },
+    { tag: tags.labelName, color: "#e879f9", fontWeight: "700" },
     { tag: tags.operator, color: "#d4d4d4", fontWeight: "700" },
     { tag: tags.atom, color: "#4ec9b0", fontWeight: "700" },
     { tag: tags.meta, color: "#dcdcaa", fontWeight: "700" },
-    { tag: tags.contentSeparator, color: "#c586c0", fontWeight: "700" },
+    { tag: tags.contentSeparator, color: "#22d3ee", fontWeight: "800", backgroundColor: "rgba(34, 211, 238, 0.14)" },
     { tag: tags.string, color: "#ce9178" },
     { tag: tags.number, color: "#b5cea8" },
     { tag: tags.bool, color: "#569cd6", fontWeight: "600" },
