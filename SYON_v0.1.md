@@ -142,7 +142,7 @@ Comments may follow:
 A comment inside a quoted string is literal content:
 
 ```syon
-url: "https://example.com/a//b"
+url: "https://example.com/a/b"
 ```
 
 There are no block comments.
@@ -1156,7 +1156,8 @@ models[]
 Rules:
 
 - A schema is not required for plain non-tuple `+` rows.
-- `_`, `^`, and `***` require a tuple schema.
+- `_` and `***` require a tuple schema.
+- A complete `+ ^` row is also allowed without a schema, subject to the fixed row-2 group mask (§7.5, §9.9).
 - `+ ~` is allowed with or without a schema.
 - Blank lines and comment-only lines do not end a block.
 - The next ordinary non-row statement ends the block; that statement is interpreted at the unchanged cursor.
@@ -1165,12 +1166,13 @@ Rules:
 - Headings, `---`, and end of file also end the block.
 - Ending a block does not open or close a navigation scope.
 - An array block is not a navigation scope.
+- Each new array block starts with fresh group state, regardless of elements already present in its target array.
 
 ### 7.5 Plain array rows
 
 A free-standing object or array literal is not an array row and does not append to an open array block. Use `+` rows.
 
-Without a tuple schema, a `+` row appends one value:
+Without a tuple schema, an ordinary `+` row appends one value. The whole element acts as one implicit value column for grouping:
 
 ```syon
 items[]
@@ -1180,15 +1182,32 @@ items[]
 + null
 ```
 
+Whole-row repetition is also supported:
+
+```syon
+arr[]
++ 1
++ ^
++ ^
+```
+
+produces `{"arr":[1,1,1]}`.
+
 Rules:
 
 - Every `+` row is one physical line.
 - `>` continuation is not allowed on `+` rows.
 - A container value is sealed as one element.
 - The containing array is not sealed.
-- `_`, `^`, and `***` are not supported without a schema.
+- The first ordinary row must contain an explicit value; `+ ^` there is an error (`E_GROUP_ROOT`).
+- The second ordinary row fixes the single-column group mask. If it is `+ ^`, the whole element is locked to the first row's value and every later ordinary row must also be `+ ^`.
+- If the second ordinary row contains an explicit value, no later row in that block may introduce `+ ^`, even if the first two values are equal. Violating either mask rule is an error (`E_GROUP_MASK`).
+- Copied objects and arrays are independent values, not mutable aliases.
+- `_` and `***` are not supported without a schema. To start a fresh plain-array group, open a new array block; reopening the array preserves existing elements but discards the previous group's state.
 - `+ ~` appends a `null` element.
-- `+ null` appends the value `null`.
+- `+ null` appends the value `null` and counts as an ordinary row; `+ ~` does not count for grouping.
+- Quoted `"^"` and `'^'` are ordinary string values; they do not declare a copy mask.
+- Only the complete unquoted `+ ^` row has this copying meaning. `^` is not a general value for fields, `key[+]:` appends, root initializers, or nested literals.
 - A bare `+` or a `+` with no value is invalid.
 
 ### 7.6 `+ ~`
@@ -1550,7 +1569,7 @@ Rules:
 - Quoted marker-like text is literal.
 - A tuple schema requires an active field-array block or the root-array context.
 - Only one tuple schema is allowed per array block.
-- A tuple schema must appear before any non-null `+` row.
+- A tuple schema must appear before any ordinary `+` row, including `+ null` and `+ ^`.
 - A preceding `+ ~` row is allowed; a tuple schema may follow one or more `+ ~` rows.
 - A tuple schema changes table metadata only. It does not reset heading frames, final-heading-target history, navigation state, seals, or assignment history.
 
@@ -1593,6 +1612,27 @@ Rules:
 - It cannot bypass a sealed root or a closed navigation scope.
 - A new object-map schema ends the current object table and starts a new table at the same cursor with fresh group state. It does not reset heading frames, final-heading-target history, navigation state, seals, or assignment history.
 
+Quoted schema paths and row titles:
+
+```syon
+# meta
+* $ : "" | "literal.dot"
+- "row.with.dot" : "empty key" | "literal column"
+```
+
+produces:
+
+```json
+{
+  "meta": {
+    "row.with.dot": {
+      "": "empty key",
+      "literal.dot": "literal column"
+    }
+  }
+}
+```
+
 ### 9.3 Row syntax
 
 Array rows begin with `+` followed by one required ASCII space.
@@ -1607,6 +1647,18 @@ Rules:
 - Rows and schemas are single-line.
 - `>` continuation is not allowed on any row.
 - Comments may follow a row.
+
+Invalid row examples:
+
+```text
++ {
+  "x" : 3 // invalid: a row must be one physical line
+}
+
++ >
+>"first
+> second" // invalid: > continuation is not allowed on a row
+```
 
 For N value columns:
 
@@ -1673,6 +1725,58 @@ Network.Route[]
 
 not a named array heading.
 
+A complete dotted declaration:
+
+```syon
+edge.routes[]
+* path | upstream
++ "/" | "api"
++ "/static" | "cdn"
+```
+
+produces:
+
+```json
+{
+  "edge": {
+    "routes": [
+      {
+        "path": "/",
+        "upstream": "api"
+      },
+      {
+        "path": "/static",
+        "upstream": "cdn"
+      }
+    ]
+  }
+}
+```
+
+The root-array form:
+
+```syon
+# []
+* id | label
++ 1 | "first"
++ 2 | "second"
+```
+
+produces:
+
+```json
+[
+  {
+    "id": 1,
+    "label": "first"
+  },
+  {
+    "id": 2,
+    "label": "second"
+  }
+]
+```
+
 ### 9.6 Omission with `_`
 
 An unquoted `_` in a whole value cell omits that column’s write:
@@ -1720,7 +1824,50 @@ produces:
 
 `null` and `""` are explicit values, never omission.
 
-`_` and `^` are table-cell syntax, not general R-values for fields, plain array rows, root initializers, or nested literal values.
+`_` is table-cell syntax and is invalid in plain array rows. `^` is supported in table cells and as a complete plain-array `+ ^` row (§7.5). Neither marker is a general R-value for fields, `key[+]:` appends, root initializers, or nested literal values.
+
+Example with dotted columns and mixed omission, `null`, empty-string, and quoted-pipe cells:
+
+```syon
+# inventory
+items[]
+* sku | price | meta.color | meta.size | note
++ "A-1" | 9.99 | "red" | "M" | _
++ "B-2" | 12.5 | _ | _ | ""
++ "C-3" | null | "blue" | _ | "quoted | pipe"
+```
+
+produces:
+
+```json
+{
+  "inventory": {
+    "items": [
+      {
+        "sku": "A-1",
+        "price": 9.99,
+        "meta": {
+          "color": "red",
+          "size": "M"
+        }
+      },
+      {
+        "sku": "B-2",
+        "price": 12.5,
+        "note": ""
+      },
+      {
+        "sku": "C-3",
+        "price": null,
+        "meta": {
+          "color": "blue"
+        },
+        "note": "quoted | pipe"
+      }
+    ]
+  }
+}
+```
 
 ### 9.7 Object-map tables
 
@@ -1754,6 +1901,34 @@ Dotted row titles may share intermediate ancestors that were not themselves assi
 
 All object-map data rows require `:` after the title. Direct-value rows require one value cell after that colon.
 
+Example with dotted row titles sharing an intermediate object:
+
+```syon
+# obj
+* $ : a | desc
+- group.z : 2 | "nested"
+- group.w : 3 | "sibling"
+```
+
+produces:
+
+```json
+{
+  "obj": {
+    "group": {
+      "z": {
+        "a": 2,
+        "desc": "nested"
+      },
+      "w": {
+        "a": 3,
+        "desc": "sibling"
+      }
+    }
+  }
+}
+```
+
 ### 9.8 Direct-value object maps
 
 The schemas `* $` and `* $ :` are equivalent direct-value schemas. They denote one value column: the row value itself.
@@ -1784,12 +1959,40 @@ A quoted empty named column is different:
 
 produces `{"x":{"":1}}`.
 
+Example with dotted and quoted direct-value titles:
+
+```syon
+# config
+* $
+- alpha : true
+- beta : null
+- gamma : _
+- nested.value : 42
+- "quoted.key" : "literal dot"
+```
+
+produces:
+
+```json
+{
+  "config": {
+    "alpha": true,
+    "beta": null,
+    "nested": {
+      "value": 42
+    },
+    "quoted.key": "literal dot"
+  }
+}
+```
+
 ### 9.9 Grouped `^`
 
-For each table, grouping state starts fresh.
+For each table or plain array block, grouping state starts fresh.
 
 An **ordinary row** is:
 
+- a plain array row other than the complete `+ ~` row;
 - an array-tuple row;
 - an object-map data row;
 - a direct-value row;
@@ -1815,14 +2018,14 @@ The second ordinary row declares the group mask.
 - A column containing `^` becomes locked.
 - A locked column copies the root’s state for the same column in that row.
 - A column without `^` stays free for the remainder of the group.
-- The mask is fixed until `***` or table end.
+- The mask is fixed until table or array-block end, or a permitted `***` table-group reset.
 
 If the second ordinary row contains no `^`, the mask is empty and no later row in that group may introduce `^`.
 
 #### Later rows
 
 - A locked column must contain exactly `^`; it copies the root’s value or omission. Copying omission performs no write and does not produce `null`.
-- A free column must not contain `^`; it must contain an explicit value, explicit `null`, or `_`.
+- A free column must not contain `^`; it must contain an explicit value, explicit `null`, or `_` where table omission is supported.
 - A concrete value in a locked column is invalid even if equal to the root value.
 - `^` in a free column is invalid.
 
@@ -1831,6 +2034,8 @@ If the second ordinary row contains no `^`, the mask is empty and no later row i
 Quoted `"^"` is an ordinary string.
 
 Copied container values are independent values, not aliases.
+
+In a plain array block without a tuple schema, the complete element is one implicit value column. A `+ ^` second ordinary row locks that whole value; all later ordinary rows must keep using `+ ^`. A second ordinary row with an explicit value leaves it free, so later `+ ^` rows are invalid. Plain array blocks do not support omission or `***`; a new block starts with fresh group state (§7.5).
 
 #### Group examples
 
@@ -1875,6 +2080,29 @@ produces:
 
 The first group locks `a` to absence. The second locks it to `10`.
 
+Invalid plain-array examples follow the same root and row-2 mask rules:
+
+```text
+arr[]
++ ^ // invalid (E_GROUP_ROOT): the first ordinary row must supply a value
+```
+
+```text
+arr[]
++ 1
++ 2
++ ^ // invalid (E_GROUP_MASK): row 2 did not lock the value with ^
+```
+
+```text
+arr[]
++ 1
++ ^
++ 1 // invalid (E_GROUP_MASK): once locked, later ordinary rows must use ^
+```
+
+The second example is still invalid if its second row is `+ 1`: equal explicit values do not establish a copy mask. Blank lines, comments, and `+ ~` do not change which ordinary row declares the mask.
+
 ### 9.10 `***` group reset
 
 A standalone `***` inside an active table discards the current group root, ordinary-row count, and mask while preserving:
@@ -1899,6 +2127,46 @@ Rules:
 - It is invalid outside an active table.
 - Comments may follow `***`.
 
+Example of `***` resetting an object-map table group:
+
+```syon
+# endpoints
+* $ : method | path | rateLimit
+- health : "GET" | "/health" | _
+- metrics : ^ | "/metrics" | 120
+*** // new group
+- charge : "POST" | "/charge" | 60
+- refund : ^ | "/refund" | ^
+```
+
+produces:
+
+```json
+{
+  "endpoints": {
+    "health": {
+      "method": "GET",
+      "path": "/health"
+    },
+    "metrics": {
+      "method": "GET",
+      "path": "/metrics",
+      "rateLimit": 120
+    },
+    "charge": {
+      "method": "POST",
+      "path": "/charge",
+      "rateLimit": 60
+    },
+    "refund": {
+      "method": "POST",
+      "path": "/refund",
+      "rateLimit": 60
+    }
+  }
+}
+```
+
 ### 9.11 `+ ~` and group counting
 
 `+ ~` appends one `null` array element.
@@ -1914,7 +2182,78 @@ Rules:
 
 With a schema, `+ null` is an ordinary cell value. In a one-column tuple table, `+ null` writes a `null` field; `+ ~` instead appends a `null` element. Without a schema, both `+ null` and `+ ~` append a `null` element.
 
+They still differ for grouping without a schema: `+ null` can be the group root or declare the row-2 mask, while `+ ~` never participates. Interleaving `+ ~` rows does not make a later `+ ^` legal if the second ordinary row was explicit.
+
 Comments and blank source lines also do not count as rows.
+
+Example with `+ ~` before the schema and between grouped rows:
+
+```syon
+# events
+events[]
++ ~
++ ~
+* kind | message
++ "start" | "boot"
++ ^ | "ready"
++ ~
++ ^ | "stop"
+```
+
+produces:
+
+```json
+{
+  "events": {
+    "events": [
+      null,
+      null,
+      {
+        "kind": "start",
+        "message": "boot"
+      },
+      {
+        "kind": "start",
+        "message": "ready"
+      },
+      null,
+      {
+        "kind": "start",
+        "message": "stop"
+      }
+    ]
+  }
+}
+```
+
+Example contrasting `+ null` and `+ ~` in a one-column tuple table:
+
+```syon
+# values
+vals[]
+* v
++ null
++ ~
++ "x"
+```
+
+produces:
+
+```json
+{
+  "values": {
+    "vals": [
+      {
+        "v": null
+      },
+      null,
+      {
+        "v": "x"
+      }
+    ]
+  }
+}
+```
 
 ### 9.12 Row construction
 
@@ -1950,6 +2289,82 @@ Direct-value row resolving to omission:
 - still counts as an ordinary group row;
 - still may not enter a closed title path or traverse a scalar/array intermediate.
 
+Example with duplicate schema paths and one write per row:
+
+```syon
+# dup
+rows[]
+* k | k | other
++ 1 | _ | "a"
++ _ | 2 | "b"
+```
+
+produces:
+
+```json
+{
+  "dup": {
+    "rows": [
+      {
+        "k": 1,
+        "other": "a"
+      },
+      {
+        "k": 2,
+        "other": "b"
+      }
+    ]
+  }
+}
+```
+
+Example returning to a nested object in a later column:
+
+```syon
+# obj
+* $ : a.x | b | a.y
+- row : 1 | "middle" | 2
+```
+
+produces:
+
+```json
+{
+  "obj": {
+    "row": {
+      "a": {
+        "x": 1,
+        "y": 2
+      },
+      "b": "middle"
+    }
+  }
+}
+```
+
+Example of an object-map row with all cells omitted:
+
+```syon
+# obj
+* $ : a | b
+- empty : _ | _
+- next : 1 | 2
+```
+
+produces:
+
+```json
+{
+  "obj": {
+    "empty": {},
+    "next": {
+      "a": 1,
+      "b": 2
+    }
+  }
+}
+```
+
 ### 9.13 Row targets and sealing
 
 - A completed object-map row seals its row target, not the containing table object or array.
@@ -1981,6 +2396,75 @@ Direct-value row resolving to omission:
 - `***` requires an active table.
 - Group state ends with its table.
 
+Example with fields before and after a table:
+
+```syon
+# service
+name: "gateway"
+
+routes[]
+* method | path
++ "GET" | "/health"
++ "POST" | "/charge"
+
+description: "Public API"
+```
+
+produces:
+
+```json
+{
+  "service": {
+    "name": "gateway",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/health"
+      },
+      {
+        "method": "POST",
+        "path": "/charge"
+      }
+    ],
+    "description": "Public API"
+  }
+}
+```
+
+Example reopening a table in a later section:
+
+```syon
+# gateway
+routes[]
+* path | target
++ "/" | "api"
+
+---
+# gateway
+routes[]
+* path | target
++ "/health" | "health"
+```
+
+produces:
+
+```json
+{
+  "gateway": {
+    "routes": [
+      {
+        "path": "/",
+        "target": "api"
+      },
+      {
+        "path": "/health",
+        "target": "health"
+      }
+    ]
+  }
+}
+```
+
 ### 9.15 No table-column typing
 
 Tables do not infer or validate column types.
@@ -1991,6 +2475,62 @@ Tables do not infer or validate column types.
 - Each row is independently constructed.
 - Intermediate objects in one row do not impose a shape on another row.
 - Copied containers do not create aliases.
+
+Example with mixed cell kinds and container values:
+
+```syon
+# mixed
+rows[]
+* id | payload | meta.kind
++ 1 | { "a": [1, 2] } | "object"
++ 2 | [true, null] | "array"
++ 3 | "text" | _
++ 4 | 3.14 | null
+```
+
+produces:
+
+```json
+{
+  "mixed": {
+    "rows": [
+      {
+        "id": 1,
+        "payload": {
+          "a": [
+            1,
+            2
+          ]
+        },
+        "meta": {
+          "kind": "object"
+        }
+      },
+      {
+        "id": 2,
+        "payload": [
+          true,
+          null
+        ],
+        "meta": {
+          "kind": "array"
+        }
+      },
+      {
+        "id": 3,
+        "payload": "text"
+      },
+      {
+        "id": 4,
+        "payload": 3.14,
+        "meta": {
+          "kind": null
+        }
+      }
+    ]
+  }
+}
+```
 
 ---
 

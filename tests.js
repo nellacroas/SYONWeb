@@ -305,6 +305,103 @@ bad("T71", "# []\nitems[]", "E_CURSOR");
 bad("T72", "# []\nitems[+]: 1", "E_CURSOR");
 
 // ---------------------------------------------------------------------------
+// Plain array grouping: the whole element is one implicit value column
+// ---------------------------------------------------------------------------
+
+ok("A-G01", "arr[]\n+ 1\n+ ^\n+ ^", { arr: [1, 1, 1] });
+ok("A-G02", "# []\n+ 1\n+ ^\n+ ^", [1, 1, 1]);
+ok("A-G03", "arr[]\n+ 1\n+ 2\n+ 3", { arr: [1, 2, 3] });
+ok("A-G04", 'arr[]\n+ 1\n+ "two"\n+ { x: 3 }\n+ null', {
+  arr: [1, "two", { x: 3 }, null]
+});
+ok("A-G05", "arr[]\n+ ~\n+ ~\n+ 7\n+ ^\n+ ~\n+ ^", {
+  arr: [null, null, 7, 7, null, 7]
+});
+ok("A-G06", "arr[]\n+ 1\n+ ~\n+ ^\n+ ^", { arr: [1, null, 1, 1] });
+ok("A-G07", "arr[]\n+ 1\n+ ^\narr[]\n+ 2\n+ ^", { arr: [1, 1, 2, 2] });
+ok("A-G08", "arr[]\n+ 1\n+ ^\n---\narr[]\n+ 2\n+ ^", { arr: [1, 1, 2, 2] });
+ok("A-G09", "arr[]\n+ 1\n+ ^\nother[]\n+ 2\n+ ^", {
+  arr: [1, 1], other: [2, 2]
+});
+ok("A-G10", "[9]\n---\n# []\n+ 1\n+ ^", [9, 1, 1]);
+ok("A-G11", "arr[+]: 9\narr[]\n+ 1\n+ ^", { arr: [9, 1, 1] });
+ok("A-G12", "  arr []\n  + 1 // root\n\n// not a row\n\t+ ^ // mask\n  + ^", {
+  arr: [1, 1, 1]
+});
+ok("A-G13", "arr[]\n+ ~\n* id\n+ 1\n+ ^", { arr: [null, { id: 1 }, { id: 1 }] });
+
+for (const [name, literal, value] of [
+  ["zero", "0", 0],
+  ["false", "false", false],
+  ["true", "true", true],
+  ["null", "null", null],
+  ["empty-string", '""', ""],
+  ["literal-string", "'C:\\data'", "C:\\data"],
+  ["quoted-caret", '"^"', "^"],
+  ["quoted-omission", '"_"', "_"],
+  ["quoted-tilde", '"~"', "~"],
+  ["quoted-pipe", '"a|b"', "a|b"],
+  ["empty-object", "{}", {}],
+  ["empty-array", "[]", []],
+  ["nested-object", '{ nested: { items: [1, "two"] } }', { nested: { items: [1, "two"] } }],
+  ["nested-array", '[1, { nested: [false, null] }]', [1, { nested: [false, null] }]]
+]) {
+  ok("A-COPY-" + name, "arr[]\n+ " + literal + "\n+ ^\n+ ^", { arr: [value, value, value] });
+}
+
+bad("A-G14", "arr[]\n+ ^", "E_GROUP_ROOT");
+bad("A-G15", "# []\n+ ^", "E_GROUP_ROOT");
+bad("A-G16", "arr[]\n+ ~\n+ ^", "E_GROUP_ROOT");
+bad("A-G17", "arr[]\n+ 1\n+ 2\n+ ^", "E_GROUP_MASK");
+bad("A-G18", "arr[]\n+ 1\n+ 1\n+ ^", "E_GROUP_MASK");
+bad("A-G19", "arr[]\n+ 1\n+ ^\n+ 1", "E_GROUP_MASK");
+bad("A-G20", "arr[]\n+ 1\n+ ^\n+ 2", "E_GROUP_MASK");
+bad("A-G21", "arr[]\n+ 1\n+ ^\n+ null", "E_GROUP_MASK");
+bad("A-G22", "arr[]\n+ 1\n+ null\n+ ^", "E_GROUP_MASK");
+bad("A-G23", 'arr[]\n+ 1\n+ "^"\n+ ^', "E_GROUP_MASK");
+bad("A-G24", "arr[]\n+ 1\n+ 2\n+ 3\n+ ^", "E_GROUP_MASK");
+bad("A-G25", "arr[]\n+ 1\n+ 2\n+ ~\n+ ^", "E_GROUP_MASK");
+bad("A-G26", "arr[]\n+ 1\n+ ^\n+ ~\n+ 1", "E_GROUP_MASK");
+bad("A-G27", "arr[]\n+ 1\n+ ^\narr[]\n+ ^", "E_GROUP_ROOT");
+bad("A-G28", "arr[]\n+ 1\n+ ^\n---\narr[]\n+ ^", "E_GROUP_ROOT");
+bad("A-G29", "arr[]\n+ 1\n+ ^\nother[]\n+ ^", "E_GROUP_ROOT");
+bad("A-G30", "arr[]\n+ 1\n+ ^\nenabled: true\n+ ^", "E_BLOCK");
+bad("A-G31", "arr[]\n+ 1\n+ ^\n---\n+ ^", "E_BLOCK");
+bad("A-G32", "arr[]\n+ 1\n+ ^\n* id", "E_SCHEMA");
+bad("A-G33", "arr[]\n+ null\n* id", "E_SCHEMA");
+bad("A-G34", "arr[]\n+ 1\n+ ^\n***", "E_BLOCK");
+bad("A-G35", "arr[]\n+ _", "E_VALUE");
+bad("A-G36", "arr[]\n+ 1\n+ ^ | 2", "E_VALUE");
+bad("A-G37", "arr[]\n+ 1\n+ ^^", "E_VALUE");
+bad("A-G38", "arr[]\n+ 1\n+ ^ extra", "E_VALUE");
+bad("A-G39", "arr[]\n+ 1\n+ { x: ^ }", "E_VALUE");
+bad("A-G40", "arr[]\n+ [1, ^]", "E_VALUE");
+bad("A-G41", "arr[+]: ^", "E_VALUE");
+bad("A-G42", "x: ^", "E_VALUE");
+bad("A-G43", "+ ^", "E_BLOCK");
+bad("A-G44", "arr[]\n* a | b\n+ 1 | 2\n+ ^", "E_ROW_ARITY");
+bad("A-G45", "* $\n- a : 1\n- b : 2\n- c : ^", "E_GROUP_MASK");
+bad("A-G46", "* $\n- a : 1\n- b : ^\n- c : 1", "E_GROUP_MASK");
+bad("A-G47", "arr[]\n+ 1\n+ ^\n---\n# arr[+]\n+ ^", "E_BLOCK");
+
+try {
+  const result = convertSource("arr[]\n+ { nested: { items: [1] } }\n+ ^\n+ ^");
+  assert.strictEqual(result.ok, true);
+  const rows = result.doc.root.obj.get("arr").arr;
+  assert.notStrictEqual(rows[0], rows[1]);
+  assert.notStrictEqual(rows[1], rows[2]);
+  assert.notStrictEqual(rows[0].obj.get("nested"), rows[1].obj.get("nested"));
+  assert.notStrictEqual(rows[1].obj.get("nested"), rows[2].obj.get("nested"));
+  rows[1].obj.get("nested").obj.get("items").arr[0].value = 99;
+  assert.strictEqual(rows[0].obj.get("nested").obj.get("items").arr[0].value, 1);
+  assert.strictEqual(rows[2].obj.get("nested").obj.get("items").arr[0].value, 1);
+  passed++;
+} catch (err) {
+  failed++;
+  failures.push("A-COPY-independent-containers: " + err.message);
+}
+
+// ---------------------------------------------------------------------------
 // Comments, >, multiline
 // ---------------------------------------------------------------------------
 

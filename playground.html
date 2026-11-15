@@ -61,6 +61,7 @@
     .pane-head {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
       padding: 9px 12px;
       border-bottom: 1px solid var(--pane-border);
@@ -74,6 +75,24 @@
       text-transform: uppercase;
       color: #9cdcfe;
       margin-right: auto;
+    }
+
+    .pane-head--source {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    }
+
+    .pane-head--source .title {
+      margin-right: 0;
+      justify-self: start;
+    }
+
+    .pane-head--source .preset-nav {
+      justify-self: center;
+    }
+
+    .pane-head--source #clear {
+      justify-self: end;
     }
 
     select, button {
@@ -93,14 +112,37 @@
       background: #2d2d2d;
     }
 
-    button.primary {
-      border-color: #0e639c;
-      background: #0e639c;
-      color: #ffffff;
-      font-weight: 600;
+    .preset-nav {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
     }
 
-    button.primary:hover { background: #1177bb; }
+    .preset-nav select {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .preset-step {
+      width: 29px;
+      height: 29px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    button:disabled,
+    button:disabled:hover {
+      border-color: #3c3c3c;
+      background: #252526;
+      color: #6b7280;
+      cursor: default;
+    }
 
     #editor-host {
       flex: 1;
@@ -214,6 +256,29 @@
         grid-template-rows: minmax(260px, 1fr) minmax(260px, 1fr);
       }
     }
+
+    @media (max-width: 600px) {
+      .pane-head--source {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .pane-head--source .title {
+        flex: 1 0 100%;
+      }
+
+      .pane-head--source .preset-nav {
+        width: 100%;
+      }
+
+      .pane-head--source .preset-nav select {
+        flex: 1 1 auto;
+      }
+
+      .pane-head--source #clear {
+        margin-left: auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -233,16 +298,34 @@
 
   <main>
     <section class="pane" aria-label="SYON Source">
-      <div class="pane-head">
+      <div class="pane-head pane-head--source">
         <span class="title">SYON Source (.syon)</span>
-        <select id="preset-select" aria-label="Load Preset">
-          <option value="app">Sample: App &amp; Tables</option>
-          <option value="jsonpatch">Sample: JSON + Sections (---)</option>
-          <option value="comments">Sample: Inline Object Comments</option>
-          <option value="routes">Sample: Grouped Tables (***)</option>
-        </select>
+        <div class="preset-nav">
+          <button id="prev-preset" type="button" class="preset-step" aria-label="Previous tutorial or example" title="Previous topic" disabled>&larr;</button>
+          <select id="preset-select" aria-label="Load tutorial or example">
+            <optgroup label="Tutorials — start here">
+              <option value="tutorial-values" selected>1. Values &amp; Strings</option>
+              <option value="tutorial-objects">2. Objects &amp; Headings</option>
+              <option value="tutorial-arrays">3. Named Arrays &amp; Objects</option>
+              <option value="tutorial-tables">4. Tables &amp; Missing Records</option>
+              <option value="tutorial-sections">5. Sections &amp; Safe Additions</option>
+            </optgroup>
+            <optgroup label="Advanced tutorials">
+              <option value="tutorial-paths">6. Paths &amp; Quoted Names</option>
+              <option value="tutorial-advanced">7. Advanced Tables &amp; Flattening</option>
+              <option value="tutorial-root-arrays">8. Root Arrays &amp; Objects</option>
+              <option value="tutorial-json-root">9. JSON Root &amp; Sections</option>
+            </optgroup>
+            <optgroup label="Examples">
+              <option value="app">Sample: App &amp; Tables</option>
+              <option value="jsonpatch">Sample: JSON + Sections (---)</option>
+              <option value="comments">Sample: Inline Object Comments</option>
+              <option value="routes">Sample: Grouped Tables (***)</option>
+            </optgroup>
+          </select>
+          <button id="next-preset" type="button" class="preset-step" aria-label="Next tutorial or example" title="Next topic">&rarr;</button>
+        </div>
         <button id="clear" type="button">Clear</button>
-        <button id="convert" class="primary" type="button">Convert</button>
       </div>
       <div id="editor-host">
         <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
@@ -282,12 +365,297 @@
       const errorBox = document.getElementById("error");
       const statusDot = document.getElementById("status-dot");
       const statusText = document.getElementById("status-text");
-      const convertButton = document.getElementById("convert");
       const presetSelect = document.getElementById("preset-select");
+
+      const previousPresetButton = document.getElementById("prev-preset");
+      const nextPresetButton = document.getElementById("next-preset");
       const clearButton = document.getElementById("clear");
       const copyButton = document.getElementById("copy");
 
       const presets = {
+        "tutorial-values": [
+          "// 1. Values and strings",
+          "// SYON stores data as names and values, not formatted text.",
+          "// The right pane shows JSON: another text notation for the same data.",
+          "// Lines starting with // are explanations, not part of the data.",
+          "// Write a field as name: value. Text (a string) needs quotes.",
+          'service: "demo"',
+          "retries: 3",
+          "enabled: true // true and false mean yes and no.",
+          'note: null // null means no value, not the text "null".',
+          "",
+          '// Double quotes understand escapes: \\n means a line break.',
+          'greeting: "Hello!\\nWelcome."',
+          "",
+          "// Single quotes keep text literal, including backslashes.",
+          "folder: 'C:\\data'",
+          "",
+          "// > introduces one string that spans several lines.",
+          "// One space after > is ignored; the line breaks stay.",
+          "message: >",
+          '>"Deployment started.',
+          "> Checking services.",
+          '> Deployment complete."',
+          "",
+          "// --- More about keys ---",
+          "",
+          "// A bare key uses only ASCII letters, digits, _ and -.",
+          "// Bare keys are case-sensitive: Name and name are different keys.",
+          'point-3: "valid: hyphen after the first character"',
+          '_private: "valid: underscore inside a bare key"',
+          'Name: "bare key"',
+          'name: "a different key"',
+          "",
+          "// Anything else must be quoted.",
+          '"_": "quoted, so the reserved single underscore is allowed"',
+          '"display name": "space needs quotes"',
+          '"With.Dot": "dot needs quotes"',
+          '"-point3": "leading hyphen needs quotes"'
+        ].join("\n"),
+
+        "tutorial-objects": [
+          "// 2. Objects and headings",
+          "// An object groups named fields, like a record or a form.",
+          "// # app selects a top-level object called app.",
+          "# app",
+          'name: "demo"',
+          "",
+          "// ## selects an object inside app. Indentation is optional.",
+          "## database",
+          'host: "localhost"',
+          "port: 5432",
+          "",
+          "// ### creates an object one level deeper than ##, and so on.",
+          "### replicas",
+          "count: 2",
+          "",
+          "// A single # selects another object at the top level.",
+          "# display",
+          'theme: "dark"',
+          "",
+          "// An inline object groups fields directly between { and }.",
+          "// Separate fields with commas. This is the JSON literal form.",
+          "// Field names are quoted here; SYON also allows bare names.",
+          'window: {"width": 800, "height": 600}',
+          "",
+          "// display now contains theme and a window object with two fields."
+        ].join("\n"),
+
+        "tutorial-arrays": [
+          "// 3. Named arrays and objects",
+          "// An array is an ordered list. field[+]: value appends one item.",
+          "x[+]: 12",
+          "x[+]: 13",
+          "",
+          "// Inline object append: x[+] : { ... } adds one object item.",
+          'x[+] : {"retry": 3, "safe": true}',
+          "",
+          "// name[] opens a named list; the following + rows append to it.",
+          "y[]",
+          "+ 14",
+          "+ 15",
+          "",
+          "// An inline array of objects uses [ { ... }, { ... } ].",
+          "// Separate objects with commas; each object is one list item.",
+          'people: [',
+          '  {"name": "Ada"},',
+          '  {"name": "Lin"}, //trailing comma is allowed after the last item',
+		  ']',
+          "",
+          "// # services[+] appends an object to services and selects it.",
+          "// The fields below belong to this new object, not the top level.",
+          "# services[+]",
+          'name: "web"',
+          "",
+          "// Named lists work inside the selected object too.",
+          "ports[]",
+          "+ 8080",
+          "+ 8443",
+          "",
+          "// Repeat the heading to append and select a separate object.",
+          "# services[+]",
+          'name: "worker"',
+          "// An inline list uses [ ]; separate multiple items with commas.",
+          "ports: [9000, 9001]",
+          "// You can still use ## to select inside the object",
+          "## params",
+		  "enable: true"
+        ].join("\n"),
+
+        "tutorial-tables": [
+          "// 4. Tables and missing records",
+          "// A table is a shorter way to write a list of similar objects.",
+          "// users[] opens the list; * declares the column names (the schema).",
+          "users[]",
+          "* name  | role     | active",
+          '+ "Ada" | "admin"  | true',
+          "// Each + row creates an object using those field names.",
+          '+ "Lin" | "member" | false',
+          "",
+          "// + ~ adds one null list item instead of an object.",
+          "// Use it to preserve a missing record's place in the list.",
+          "+ ~",
+          "",
+          '+ "Sam" | "member" | true',
+          '+ "Jo"  | "member" | true'
+        ].join("\n"),
+
+        "tutorial-sections": [
+          "// 5. Sections and safe additions",
+          "# app",
+          'name: "demo"',
+          'tags: ["core"]',
+          "",
+          "// --- resets the heading cursor to the top level.",
+          "// It keeps the existing data: this is NOT a separate document.",
+          "---",
+          "# app",
+          "enabled: true",
+          "",
+          "// A later section can add an item to an existing list.",
+          "// field[+]: value appends without opening a list block.",
+          'tags[+]: "public"',
+          "",
+          "// Fields cannot be assigned twice, even across sections.",
+          "// Uncomment the next line to see an error, not an overwrite.",
+          '// name: "another name"',
+          '// tags: ["private"]'
+        ].join("\n"),
+
+        "tutorial-paths": [
+          "// 6. Advanced: paths and quoted names",
+          "// A dot between names means a field inside another object.",
+          "// app.database.host is host inside database inside app.",
+          'app.database.host: "localhost"',
+          "app.database.port: 5432",
+          "",
+          "// Quote a segment to keep its dot as part of the name.",
+          '// Here "public.api" is one name, not two nested objects.',
+          'services."public.api".port: 8080',
+          "",
+          "// A ## heading is relative to the current # frame and can also use a path.",
+          "# app",
+		  'name: "Hi Syon"',
+          "## database.replica",
+          'mode: "read"',
+          "",
+          "// The same paths work in headings; fields below use that object.",
+          "# app.database",
+          "pool: 8",
+          "",
+          '# services."public.api"',
+          "enabled: true",
+          "",
+          "// Quoting the whole heading makes it one literal name.",
+          '// This is separate from app.database above: the dot is inside quotes.',
+          '# "app.database"',
+          'note: "One name containing a dot"'
+        ].join("\n"),
+
+        "tutorial-advanced": [
+          "// 7. Advanced: table groups, keyed entries, and flattening",
+          "// Earlier tables made lists. * $ makes an object with named entries.",
+          "# services",
+          "// $ marks the entry's name; columns after : describe its fields.",
+          "* $         : image     | port",
+          '- web       : "app:1"   | 8080',
+          "// services.web is an object containing image and port.",
+          "",
+          "// In row 2, ^ locks image to the first row's value: app:1.",
+          "// Every later row in this group must keep ^ in that column.",
+          "- worker    : ^         | 9000",
+          "- scheduler : ^         | 9001",
+          "",
+          "// *** starts a fresh group without changing the table or columns.",
+          "***",
+          '- cache     : "redis:7" | 6379',
+          "// This group's row 2 can declare its own lock pattern.",
+          "- replica   : ^         | 6380",
+          "// If row 2 has no ^, later rows in that group cannot introduce it.",
+          "",
+          "// With no named columns, * $ maps each name directly to one value.",
+          "# notices",
+          "* $",
+          '- web    : "Maintenance starts at 02:00 UTC."',
+          "// Here ^ copies the whole message, following the same row-2 rule.",
+          "- email  : ^",
+          "- mobile : ^",
+          "",
+          "// Flattening writes nested objects as flat table rows.",
+          "# export",
+          "users[]",
+          "// contact.email means an email field inside a contact object.",
+          "* id | name  | contact.email",
+          '+ 1  | "Ada" | "ada@example.com"',
+          "// _ leaves the field absent, rather than setting it to null.",
+          "// With no contact fields written, Lin has no contact object at all.",
+          '+ 2  | "Lin" | _',
+          "// As in tutorial 4, + ~ adds a null list item: a missing record.",
+          "+ ~"
+        ].join("\n"),
+
+        "tutorial-root-arrays": [
+          "// 8. Advanced: root arrays and objects",
+          "// Usually a document contains named fields, as in tutorial 3.",
+          "// # [] instead makes the whole document itself an ordered list.",
+          "# []",
+          "",
+          "// + appends one complete value. Here it is an object literal.",
+          "// Its ports field contains an inline list.",
+          '+ {"name": "cache", "ports": [6379]}',
+          "",
+          "// # [+] appends an object directly to the document's root list.",
+          "// Unlike # services[+], there is no named services field.",
+          "# [+]",
+          'name: "web"',
+          "",
+          "// Once an object is selected, write fields and named lists normally.",
+          "ports[]",
+          "+ 8080",
+          "+ 8443",
+          "",
+          "// Another # [+] appends and selects a separate root-list object.",
+          "# [+]",
+          'name: "worker"',
+          "ports: [9000]"
+        ].join("\n"),
+
+        "tutorial-json-root": [
+          "// 9. Advanced: JSON as the root, plus sections",
+          "// SYON accepts JSON directly, adding features like comments and sections.",
+          "// Here { ... } is the whole document, not a field inside another object.",
+          "// A bare root value must come before any headings, writes, or ---.",
+          "{",
+          '  "name": "demo",',
+          '  "server": {"host": "localhost"},',
+          '  "tags": ["core"]',
+          "}",
+          "",
+          "// A completed object or array literal is sealed for this section.",
+          "// Uncomment to see why additions need a new section first (E_SEALED).",
+          "// enabled: true",
+          "",
+          "// --- resets the heading cursor and clears section-local seals.",
+          "// It keeps the same data AND remembers every earlier assignment.",
+          "---",
+          "// New fields and list items can now be added to the existing root.",
+          "enabled: true",
+          'tags[+]: "public"',
+          "",
+          "// No redefinition: existing fields cannot be assigned again, even equally.",
+          "// Uncomment either line to see a duplicate-assignment error.",
+          '// name: "demo"',
+          '// tags: ["private"]',
+          "",
+          "// A second bare literal after --- cannot replace the root (E_ROOT).",
+          '// {"replacement": true}',
+          "",
+          "// Existing objects can gain new fields, but cannot overwrite old ones.",
+          "# server",
+          "port: 8080",
+          '// host: "other-host" // Invalid: host was assigned in the JSON literal.'
+        ].join("\n"),
+
         app: [
           "# application",
           'name: "edge-gateway"',
@@ -379,6 +747,7 @@
         ].join("\n")
       };
 
+      const initialSource = presets[presetSelect.value];
       let timer = null;
       let editor = null;
       let rawJsonText = "";
@@ -445,6 +814,47 @@
         else fallbackSource.focus();
       }
 
+      function updatePresetButtons() {
+        const options = Array.from(presetSelect.options);
+        const index = options.findIndex(function (option) {
+          return option.value === presetSelect.value;
+        });
+        const previous = index > 0 ? options[index - 1] : null;
+        const next = index >= 0 && index < options.length - 1 ? options[index + 1] : null;
+
+        previousPresetButton.disabled = !previous;
+        nextPresetButton.disabled = !next;
+        previousPresetButton.title = previous ? "Previous: " + previous.textContent : "Previous topic";
+        nextPresetButton.title = next ? "Next: " + next.textContent : "Next topic";
+        previousPresetButton.setAttribute(
+          "aria-label",
+          previous ? "Previous: " + previous.textContent : "Previous tutorial or example"
+        );
+        nextPresetButton.setAttribute(
+          "aria-label",
+          next ? "Next: " + next.textContent : "Next tutorial or example"
+        );
+      }
+
+      function loadPreset(key) {
+        if (!presets[key]) return;
+        setSourceText(presets[key]);
+        convert();
+        focusEditor();
+        updatePresetButtons();
+      }
+
+      function stepPreset(offset) {
+        const options = Array.from(presetSelect.options);
+        const index = options.findIndex(function (option) {
+          return option.value === presetSelect.value;
+        });
+        const target = index >= 0 ? options[index + offset] : null;
+        if (!target) return;
+        presetSelect.value = target.value;
+        loadPreset(target.value);
+      }
+
       function renderJson(json) {
         rawJsonText = json || "";
         if (window.BareEditor && window.BareEditor.highlightJsonHtml) {
@@ -479,23 +889,23 @@
         fallbackSource.remove();
         editor = window.BareEditor.createBareEditor({
           parent: editorHost,
-          initialDoc: presets.app,
+          initialDoc: initialSource,
           onChange: scheduleConvert,
           onConvertShortcut: convert
         });
       } else {
-        fallbackSource.value = presets.app;
+        fallbackSource.value = initialSource;
         fallbackSource.addEventListener("input", scheduleConvert);
       }
 
-      convertButton.addEventListener("click", convert);
       presetSelect.addEventListener("change", function () {
-        const key = presetSelect.value;
-        if (presets[key]) {
-          setSourceText(presets[key]);
-          convert();
-          focusEditor();
-        }
+        loadPreset(presetSelect.value);
+      });
+      previousPresetButton.addEventListener("click", function () {
+        stepPreset(-1);
+      });
+      nextPresetButton.addEventListener("click", function () {
+        stepPreset(1);
       });
       clearButton.addEventListener("click", function () {
         setSourceText("");
@@ -516,6 +926,7 @@
         }
       });
 
+      updatePresetButtons();
       convert();
     })();
   </script>

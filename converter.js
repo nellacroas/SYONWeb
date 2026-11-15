@@ -1517,8 +1517,14 @@
         return;
       }
 
-      const value = this.parseSingleValue(code, line, col);
-      this.appendValue(block.target, value, { line, col });
+      // Without a schema, the complete element is one implicit value column.
+      // Keep _ invalid here: omission only applies to schema-defined table cells.
+      const cell = code === "^"
+        ? { kind: "caret" }
+        : { kind: "value", value: this.parseSingleValue(code, line, col) };
+      const resolved = this.resolveGroupRow([cell], block.group, line, col);
+      this.appendValue(block.target, resolved.values[0].value, { line, col });
+      block.group = resolved.group;
       block.plainRowsWithoutSchema = true;
     }
 
